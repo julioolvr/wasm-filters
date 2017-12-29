@@ -1,0 +1,9 @@
+[package]
+name = "filter"
+version = "0.1.0"
+authors = ["Julio Olivera <julio.olvr@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
