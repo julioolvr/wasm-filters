@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import loadWasm from './rust-filter/src/lib.rs';
+import ImageSelector from './components/imageSelector';
+import ImagePreview from './components/imagePreview';
 
 class App extends React.Component {
   constructor(props) {
@@ -9,7 +11,8 @@ class App extends React.Component {
 
     this.state = {
       loading: true,
-      wasm: null
+      wasm: null,
+      image: null
     };
   }
 
@@ -21,7 +24,20 @@ class App extends React.Component {
 
   render() {
     return (
-      <div>{this.state.loading ? 'Loading...' : <input type="file" />}</div>
+      <div>
+        {this.state.loading ? (
+          'Loading...'
+        ) : (
+          <React.Fragment>
+            <ImageSelector
+              onChange={newImage => this.setState({ image: newImage })}
+            />
+            <div>
+              {this.state.image && <ImagePreview data={this.state.image} />}
+            </div>
+          </React.Fragment>
+        )}
+      </div>
     );
   }
 }
