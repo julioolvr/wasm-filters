@@ -1,7 +1,7 @@
-import React from "react";
-import ReactDOM from "react-dom";
+import React from 'react';
+import ReactDOM from 'react-dom';
 
-import loadWasm from "./rust-filter/src/lib.rs";
+import loadWasm from './rust-filter/src/lib.rs';
 
 class App extends React.Component {
   constructor(props) {
@@ -21,10 +21,10 @@ class App extends React.Component {
 
   render() {
     return (
-      <div>{this.state.loading ? "Loading..." : this.state.wasm.add(1, 2)}</div>
+      <div>{this.state.loading ? 'Loading...' : <input type="file" />}</div>
     );
   }
 }
 
-const mountNode = document.getElementsByTagName("body")[0];
+const mountNode = document.getElementsByTagName('body')[0];
 ReactDOM.render(<App />, mountNode);
