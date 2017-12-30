@@ -1,7 +1,7 @@
-const HtmlWebpackPlugin = require("html-webpack-plugin");
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  entry: "./index.js",
+  entry: './index.js',
   plugins: [new HtmlWebpackPlugin()],
   module: {
     rules: [
@@ -9,9 +9,9 @@ module.exports = {
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
-          loader: "babel-loader",
+          loader: 'babel-loader',
           options: {
-            presets: ["env", "react"]
+            presets: ['env', 'react']
           }
         }
       },
@@ -19,10 +19,10 @@ module.exports = {
         test: /\.rs$/,
         use: [
           {
-            loader: "wasm-loader"
+            loader: 'wasm-loader'
           },
           {
-            loader: "rust-native-wasm-loader",
+            loader: 'rust-native-wasm-loader',
             options: {
               gc: true,
               release: true

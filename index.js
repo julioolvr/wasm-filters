@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import jpg from 'jpeg-js';
 
 import loadWasm from './rust-filter/src/lib.rs';
 import ImageSelector from './components/imageSelector';
@@ -30,7 +31,40 @@ class App extends React.Component {
         ) : (
           <React.Fragment>
             <ImageSelector
-              onChange={newImage => this.setState({ image: newImage })}
+              onChange={newImage => {
+                const decoded = jpg.decode(newImage);
+
+                const {
+                  alloc,
+                  dealloc,
+                  blur,
+                  memory: linearMemory
+                } = this.state.wasm;
+                const ptr = alloc(decoded.data.length);
+
+                const memory = new Uint8Array(linearMemory.buffer, ptr);
+                for (let i = 0; i < decoded.data.length; i++) {
+                  memory[i] = decoded.data[i];
+                }
+
+                const blurredPtr = blur(ptr, decoded.width, decoded.height);
+
+                const result = new Uint8Array(
+                  linearMemory.buffer,
+                  blurredPtr,
+                  decoded.data.length
+                );
+
+                dealloc(ptr, decoded.data.length);
+
+                this.setState({
+                  image: jpg.encode({
+                    width: decoded.width,
+                    height: decoded.height,
+                    data: result
+                  }).data
+                });
+              }}
             />
             <div>
               {this.state.image && <ImagePreview data={this.state.image} />}

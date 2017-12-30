@@ -5,5 +5,3 @@ authors = ["Julio Olivera <julio.olvr@gmail.com>"]
 
 [lib]
 crate-type = ["cdylib"]
-
-[dependencies]
