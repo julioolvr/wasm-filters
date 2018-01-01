@@ -2,8 +2,7 @@ use std::slice;
 use std::mem;
 use std::os::raw::c_void;
 
-mod blur;
-use blur as blur_fns;
+pub mod filters;
 
 #[no_mangle]
 pub fn blur(data: *const u8, width: usize, height: usize) -> *const u8 {
@@ -13,7 +12,7 @@ pub fn blur(data: *const u8, width: usize, height: usize) -> *const u8 {
         jpg_data = slice::from_raw_parts(data, width * height * 4);
     }
 
-    let blurred = blur_fns::gaussian(jpg_data, width, height);
+    let blurred = filters::gaussian(jpg_data, width, height);
     let ptr = blurred.as_ptr();
     mem::forget(blurred);
 

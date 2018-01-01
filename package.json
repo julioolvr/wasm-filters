@@ -5,7 +5,7 @@
   "author": "Julio Olivera <julio.olvr@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "start": "webpack-dev-server --open",
+    "start": "webpack-dev-server",
     "lint": "eslint **/*.js"
   },
   "devDependencies": {
