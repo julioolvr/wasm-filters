@@ -1,41 +1,31 @@
-fn get_kernel() -> Vec<Vec<f64>> {
-    vec![
-        vec![
-            1.0 / 273.0,
-            4.0 / 273.0,
-            7.0 / 273.0,
-            4.0 / 273.0,
-            1.0 / 273.0,
-        ],
-        vec![
-            4.0 / 273.0,
-            16.0 / 273.0,
-            26.0 / 273.0,
-            16.0 / 273.0,
-            4.0 / 273.0,
-        ],
-        vec![
-            7.0 / 273.0,
-            26.0 / 273.0,
-            41.0 / 273.0,
-            26.0 / 273.0,
-            7.0 / 273.0,
-        ],
-        vec![
-            4.0 / 273.0,
-            16.0 / 273.0,
-            26.0 / 273.0,
-            16.0 / 273.0,
-            4.0 / 273.0,
-        ],
-        vec![
-            1.0 / 273.0,
-            4.0 / 273.0,
-            7.0 / 273.0,
-            4.0 / 273.0,
-            1.0 / 273.0,
-        ],
-    ]
+use std::f64::consts::{E, PI};
+
+fn get_kernel(size: usize) -> Vec<Vec<f64>> {
+    let sigma = 10.0_f64;
+    let size = 2 * size + 1; // Make it always odd so there's always a center element
+    let mut total = 0.0;
+    let mut kernel: Vec<Vec<f64>> = Vec::with_capacity(size);
+
+    for x in 0..size {
+        kernel.push(Vec::with_capacity(size));
+
+        for y in 0..size {
+            kernel[x].push(
+                1.0 / (2.0 * PI * sigma.powi(2))
+                    * E.powf(-1.0 * (x as f64).powi(2) * (y as f64).powi(2) / 2.0 * sigma.powi(2)),
+            );
+
+            total += kernel[x][y];
+        }
+    }
+
+    for x in 0..size {
+        for y in 0..size {
+            kernel[x][y] /= total;
+        }
+    }
+
+    kernel
 }
 
 pub fn gaussian(data: &[u8], width: usize, height: usize) -> Vec<u8> {
@@ -46,7 +36,7 @@ pub fn gaussian(data: &[u8], width: usize, height: usize) -> Vec<u8> {
 
     let mut blurred = data.to_vec();
 
-    let kernel = get_kernel();
+    let kernel = get_kernel(2);
     let kernel_size = kernel.len() as i64;
 
     for i in 0..(width * height) {

@@ -18,7 +18,7 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    loadWasm().then(result =>
+    loadWasm({ env: { pow: Math.pow } }).then(result =>
       this.setState({ loading: false, wasm: result.instance.exports })
     );
   }
