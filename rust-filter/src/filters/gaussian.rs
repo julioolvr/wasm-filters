@@ -1,75 +1,235 @@
-use std::f64::consts::{E, PI};
+// From https://github.com/fschutt/fastblur, but I can't add the crate as a dependency
+// since it depends on `image`, which I can't compile for wasm
 
-fn get_kernel(size: usize) -> Vec<Vec<f64>> {
-    let sigma = 10.0_f64;
-    let size = 2 * size + 1; // Make it always odd so there's always a center element
-    let mut total = 0.0;
-    let mut kernel: Vec<Vec<f64>> = Vec::with_capacity(size);
+pub fn gaussian(data: &mut Vec<[u8; 3]>, width: usize, height: usize, blur_radius: f32) {
+    let bxs = create_box_gauss(blur_radius, 3);
+    let mut backbuf = data.clone();
 
-    for x in 0..size {
-        kernel.push(Vec::with_capacity(size));
-
-        for y in 0..size {
-            kernel[x].push(
-                1.0 / (2.0 * PI * sigma.powi(2))
-                    * E.powf(-1.0 * (x as f64).powi(2) * (y as f64).powi(2) / 2.0 * sigma.powi(2)),
-            );
-
-            total += kernel[x][y];
-        }
-    }
-
-    for x in 0..size {
-        for y in 0..size {
-            kernel[x][y] /= total;
-        }
-    }
-
-    kernel
+    box_blur(
+        &mut backbuf,
+        data,
+        width,
+        height,
+        ((bxs[0] - 1) / 2) as usize,
+    );
+    box_blur(
+        &mut backbuf,
+        data,
+        width,
+        height,
+        ((bxs[1] - 1) / 2) as usize,
+    );
+    box_blur(
+        &mut backbuf,
+        data,
+        width,
+        height,
+        ((bxs[2] - 1) / 2) as usize,
+    );
 }
 
-pub fn gaussian(data: &[u8], width: usize, height: usize, size: usize) -> Vec<u8> {
-    let normalized = data.to_vec()
-        .iter()
-        .map(|byte| (byte.clone() as f64) / 255.0)
-        .collect::<Vec<f64>>();
+#[inline]
+fn create_box_gauss(sigma: f32, n: usize) -> Vec<i32> {
+    let n_float = n as f32;
 
-    let mut blurred = data.to_vec();
+    // Ideal averaging filter width
+    let w_ideal = (12.0 * sigma * sigma / n_float).sqrt() + 1.0;
+    let mut wl: i32 = w_ideal.floor() as i32;
 
-    let kernel = get_kernel(size);
-    let kernel_size = kernel.len() as i64;
+    if wl % 2 == 0 {
+        wl -= 1;
+    };
 
-    for i in 0..(width * height) {
-        let alpha = normalized[i * 4 + 3];
+    let wu = wl + 2;
 
-        let row = (i / width) as i64;
-        let column = (i % width) as i64;
-        let height = height as i64;
-        let width = width as i64;
+    let wl_float = wl as f32;
+    let m_ideal = (12.0 * sigma * sigma - n_float * wl_float * wl_float - 4.0 * n_float * wl_float
+        - 3.0 * n_float) / (-4.0 * wl_float - 4.0);
+    let m: usize = m_ideal.round() as usize;
 
-        let mut blurred_r = 0.0;
-        let mut blurred_g = 0.0;
-        let mut blurred_b = 0.0;
+    let mut sizes = Vec::<i32>::new();
 
-        for (x, kernel_row) in kernel.iter().enumerate() {
-            for (y, val) in kernel_row.iter().enumerate() {
-                let x = x as i64 - kernel_size / 2;
-                let y = y as i64 - kernel_size / 2;
-
-                if row + x >= 0 && row + x < height && column + y >= 0 && column + y < width {
-                    let index = ((row + x) * width + column + y) * 4;
-                    blurred_r += normalized[index as usize] * val;
-                    blurred_g += normalized[(index + 1) as usize] * val;
-                    blurred_b += normalized[(index + 2) as usize] * val;
-                }
-            }
+    for i in 0..n {
+        if i < m {
+            sizes.push(wl);
+        } else {
+            sizes.push(wu);
         }
-
-        blurred[i * 4] = (blurred_r * 255.0) as u8;
-        blurred[i * 4 + 1] = (blurred_g * 255.0) as u8;
-        blurred[i * 4 + 2] = (blurred_b * 255.0) as u8;
-        blurred[i * 4 + 3] = (alpha * 255.0) as u8;
     }
 
-    blurred
+    sizes
+}
+
+/// Needs 2x the same image
+#[inline]
+fn box_blur(
+    backbuf: &mut Vec<[u8; 3]>,
+    frontbuf: &mut Vec<[u8; 3]>,
+    width: usize,
+    height: usize,
+    blur_radius: usize,
+) {
+    box_blur_horz(backbuf, frontbuf, width, height, blur_radius); // <- second line ovverrides first line, why?
+    *backbuf = frontbuf.clone();
+    box_blur_vert(backbuf, frontbuf, width, height, blur_radius); // both functions should mutate the data, not clone it!
+}
+
+#[inline]
+fn box_blur_vert(
+    backbuf: &mut Vec<[u8; 3]>,
+    frontbuf: &mut Vec<[u8; 3]>,
+    width: usize,
+    height: usize,
+    blur_radius: usize,
+) {
+    let iarr = 1.0 / (blur_radius + blur_radius + 1) as f32;
+
+    for i in 0..width {
+        let mut ti: usize = i;
+        let mut li: usize = ti;
+        let mut ri: usize = ti + blur_radius * width;
+
+        let fv: [u8; 3] = backbuf[ti];
+        let lv: [u8; 3] = backbuf[ti + width * (height - 1)];
+
+        let mut val_r: isize = (blur_radius as isize + 1) * (fv[0] as isize);
+        let mut val_g: isize = (blur_radius as isize + 1) * (fv[1] as isize);
+        let mut val_b: isize = (blur_radius as isize + 1) * (fv[2] as isize);
+
+        for j in 0..blur_radius {
+            let bb = backbuf[ti + j * width];
+            val_r += bb[0] as isize;
+            val_g += bb[1] as isize;
+            val_b += bb[2] as isize;
+        }
+
+        for _ in 0..(blur_radius + 1) {
+            let bb = backbuf[ri];
+            ri += width;
+            val_r += bb[0] as isize - fv[0] as isize;
+            val_g += bb[1] as isize - fv[1] as isize;
+            val_b += bb[2] as isize - fv[2] as isize;
+
+            frontbuf[ti] = [
+                (val_r as f32 * iarr).round() as u8,
+                (val_g as f32 * iarr).round() as u8,
+                (val_b as f32 * iarr).round() as u8,
+            ];
+            ti += width;
+        }
+
+        for _ in (blur_radius + 1)..(height - blur_radius) {
+            let bb1 = backbuf[ri];
+            ri += width;
+            let bb2 = backbuf[li];
+            li += width;
+
+            val_r += bb1[0] as isize - bb2[0] as isize;
+            val_g += bb1[1] as isize - bb2[1] as isize;
+            val_b += bb1[2] as isize - bb2[2] as isize;
+
+            frontbuf[ti] = [
+                (val_r as f32 * iarr).round() as u8,
+                (val_g as f32 * iarr).round() as u8,
+                (val_b as f32 * iarr).round() as u8,
+            ];
+            ti += width;
+        }
+
+        for _ in (height - blur_radius)..height {
+            let bb = backbuf[li];
+            li += width;
+
+            val_r += lv[0] as isize - bb[0] as isize;
+            val_g += lv[1] as isize - bb[1] as isize;
+            val_b += lv[2] as isize - bb[2] as isize;
+
+            frontbuf[ti] = [
+                (val_r as f32 * iarr).round() as u8,
+                (val_g as f32 * iarr).round() as u8,
+                (val_b as f32 * iarr).round() as u8,
+            ];
+            ti += width;
+        }
+    }
+}
+
+#[inline]
+fn box_blur_horz(
+    backbuf: &mut Vec<[u8; 3]>,
+    frontbuf: &mut Vec<[u8; 3]>,
+    width: usize,
+    height: usize,
+    blur_radius: usize,
+) {
+    let iarr = 1.0 / (blur_radius + blur_radius + 1) as f32;
+
+    for i in 0..height {
+        let mut ti: usize = i * width; // VERTICAL: $i;
+        let mut li: usize = ti;
+        let mut ri: usize = ti + blur_radius;
+
+        let fv: [u8; 3] = backbuf[ti];
+        let lv: [u8; 3] = backbuf[ti + width - 1]; // VERTICAL: $backbuf[ti + $width - 1];
+
+        let mut val_r: isize = (blur_radius as isize + 1) * (fv[0] as isize);
+        let mut val_g: isize = (blur_radius as isize + 1) * (fv[1] as isize);
+        let mut val_b: isize = (blur_radius as isize + 1) * (fv[2] as isize);
+
+        for j in 0..blur_radius {
+            let bb = backbuf[ti + j]; // VERTICAL: ti + j * width
+            val_r += bb[0] as isize;
+            val_g += bb[1] as isize;
+            val_b += bb[2] as isize;
+        }
+
+        for _ in 0..(blur_radius + 1) {
+            let bb = backbuf[ri];
+            ri += 1;
+            val_r += bb[0] as isize - fv[0] as isize;
+            val_g += bb[1] as isize - fv[1] as isize;
+            val_b += bb[2] as isize - fv[2] as isize;
+
+            frontbuf[ti] = [
+                (val_r as f32 * iarr).round() as u8,
+                (val_g as f32 * iarr).round() as u8,
+                (val_b as f32 * iarr).round() as u8,
+            ];
+            ti += 1; // VERTICAL : ti += width, same with the other areas
+        }
+
+        for _ in (blur_radius + 1)..(width - blur_radius) {
+            let bb1 = backbuf[ri];
+            ri += 1;
+            let bb2 = backbuf[li];
+            li += 1;
+
+            val_r += bb1[0] as isize - bb2[0] as isize;
+            val_g += bb1[1] as isize - bb2[1] as isize;
+            val_b += bb1[2] as isize - bb2[2] as isize;
+
+            frontbuf[ti] = [
+                (val_r as f32 * iarr).round() as u8,
+                (val_g as f32 * iarr).round() as u8,
+                (val_b as f32 * iarr).round() as u8,
+            ];
+            ti += 1;
+        }
+
+        for _ in (width - blur_radius)..width {
+            let bb = backbuf[li];
+            li += 1;
+
+            val_r += lv[0] as isize - bb[0] as isize;
+            val_g += lv[1] as isize - bb[1] as isize;
+            val_b += lv[2] as isize - bb[2] as isize;
+
+            frontbuf[ti] = [
+                (val_r as f32 * iarr).round() as u8,
+                (val_g as f32 * iarr).round() as u8,
+                (val_b as f32 * iarr).round() as u8,
+            ];
+            ti += 1;
+        }
+    }
 }

@@ -1,3 +1,5 @@
+#![feature(iterator_step_by)]
+
 // Importing the crate will fail since the target is cdylib (in order
 // to be able to compile it to WASM) and that the output that generates
 // cannot be imported. In order to be able to import it, I need to generate
@@ -21,18 +23,33 @@ use image::GenericImage;
 
 fn main() {
     let img = image::open("./examples/gaussian_aurora/aurora.jpg").unwrap();
+    let rgb_img = img.to_rgb().into_raw();
+    let mut rgb_img = rgb_img
+        .iter()
+        .enumerate()
+        .step_by(3)
+        .map(|(i, _)| [rgb_img[i], rgb_img[i + 1], rgb_img[i + 2]])
+        .collect();
 
-    let result = filter::filters::gaussian(
-        &img.to_rgba().into_raw(),
+    filter::filters::gaussian(
+        &mut rgb_img,
         img.width() as usize,
         img.height() as usize,
+        5.0,
     );
+
+    let mut result = Vec::with_capacity((img.width() * img.height() * 3) as usize);
+    rgb_img.into_iter().for_each(|pixel| {
+        result.push(pixel[0]);
+        result.push(pixel[1]);
+        result.push(pixel[2]);
+    });
 
     image::save_buffer(
         "./examples/gaussian_aurora/blurred.jpg",
         &result,
         img.width(),
         img.height(),
-        image::RGBA(8),
+        image::RGB(8),
     ).unwrap();
 }

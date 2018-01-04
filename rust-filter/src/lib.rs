@@ -5,16 +5,17 @@ use std::os::raw::c_void;
 pub mod filters;
 
 #[no_mangle]
-pub fn blur(data: *const u8, width: usize, height: usize, size: usize) -> *const u8 {
+pub fn blur(data: *mut [u8; 3], width: usize, height: usize, size: f32) -> *const [u8; 3] {
     let jpg_data;
 
     unsafe {
-        jpg_data = slice::from_raw_parts(data, width * height * 4);
+        jpg_data = slice::from_raw_parts(data, width * height);
     }
 
-    let blurred = filters::gaussian(jpg_data, width, height, size);
-    let ptr = blurred.as_ptr();
-    mem::forget(blurred);
+    let mut jpg_data = jpg_data.to_vec();
+
+    filters::gaussian(&mut jpg_data, width, height, size);
+    let ptr = jpg_data.as_ptr();
 
     ptr
 }

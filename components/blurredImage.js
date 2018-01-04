@@ -14,7 +14,7 @@ class BlurredImage extends React.Component {
   }
 
   componentDidMount() {
-    loadWasm({ env: { pow: Math.pow } }).then(result =>
+    loadWasm({ env: { roundf: Math.round } }).then(result =>
       this.setState({ loading: false, wasm: result.instance.exports })
     );
   }
@@ -30,11 +30,14 @@ class BlurredImage extends React.Component {
     const decoded = jpg.decode(data);
 
     const { alloc, dealloc, blur, memory: linearMemory } = wasm;
-    const ptr = alloc(decoded.data.length);
+    const ptr = alloc(decoded.data.length / 4 * 3);
 
     const memory = new Uint8Array(linearMemory.buffer, ptr);
     for (let i = 0; i < decoded.data.length; i++) {
-      memory[i] = decoded.data[i];
+      if (i % 4 !== 3) {
+        // Skip alpha channel
+        memory[i - Math.floor(i / 4)] = decoded.data[i];
+      }
     }
 
     const blurredPtr = blur(ptr, decoded.width, decoded.height, size);
@@ -42,15 +45,25 @@ class BlurredImage extends React.Component {
     const result = new Uint8Array(
       linearMemory.buffer,
       blurredPtr,
-      decoded.data.length
+      decoded.data.length / 4 * 3
     );
 
-    dealloc(ptr, decoded.data.length);
+    const resultWithAlpha = new Uint8Array(decoded.data.length);
+
+    result.forEach((byte, i) => {
+      resultWithAlpha[i + Math.floor(i / 3)] = byte;
+
+      if (i % 3 === 2) {
+        resultWithAlpha[i + Math.floor(i / 3) + 1] = 255;
+      }
+    });
+
+    dealloc(ptr, decoded.data.length / 4 * 3);
 
     const encodedImage = jpg.encode({
       width: decoded.width,
       height: decoded.height,
-      data: result
+      data: resultWithAlpha
     }).data;
 
     return <ImagePreview data={encodedImage} />;
