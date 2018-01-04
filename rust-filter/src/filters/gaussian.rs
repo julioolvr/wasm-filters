@@ -28,7 +28,7 @@ fn get_kernel(size: usize) -> Vec<Vec<f64>> {
     kernel
 }
 
-pub fn gaussian(data: &[u8], width: usize, height: usize) -> Vec<u8> {
+pub fn gaussian(data: &[u8], width: usize, height: usize, size: usize) -> Vec<u8> {
     let normalized = data.to_vec()
         .iter()
         .map(|byte| (byte.clone() as f64) / 255.0)
@@ -36,7 +36,7 @@ pub fn gaussian(data: &[u8], width: usize, height: usize) -> Vec<u8> {
 
     let mut blurred = data.to_vec();
 
-    let kernel = get_kernel(2);
+    let kernel = get_kernel(size);
     let kernel_size = kernel.len() as i64;
 
     for i in 0..(width * height) {
