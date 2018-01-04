@@ -5,7 +5,7 @@ function ImagePreview({ data }) {
   var blob = new Blob([arrayBufferView], { type: 'image/jpeg' });
   var imageUrl = URL.createObjectURL(blob);
 
-  return <img src={imageUrl} />;
+  return <img src={imageUrl} width="100%" />;
 }
 
 export default ImagePreview;

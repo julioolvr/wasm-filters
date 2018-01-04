@@ -1,9 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import g from 'glamorous';
 
 import ImageSelector from './components/imageSelector';
 import ImagePreview from './components/imagePreview';
 import BlurredImage from './components/blurredImage';
+
+const ImageContainer = g.div({
+  border: '1px solid #e6e6e6',
+  borderRadius: '4px',
+  padding: '2em',
+  minWidth: '20em',
+  maxWidth: '40vw',
+  marginBottom: '1em',
+  backgroundColor: '#d2f5ff'
+});
 
 class App extends React.Component {
   constructor(props) {
@@ -18,24 +29,40 @@ class App extends React.Component {
   render() {
     return (
       <div>
-        <ImageSelector
-          onChange={newImage => {
-            this.setState({ image: newImage });
-          }}
-        />
-        <div>
-          <input
-            type="number"
-            value={this.state.size}
-            min={0}
-            max={5}
-            onChange={e => this.setState({ size: e.target.value })}
+        <g.Div
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          marginBottom="1em"
+        >
+          <ImageSelector
+            onChange={newImage => {
+              this.setState({ image: newImage });
+            }}
           />
-          {this.state.image && <ImagePreview data={this.state.image} />}
+          <label>
+            Blur radius:
+            <input
+              type="range"
+              value={this.state.size}
+              min={0}
+              max={5}
+              onChange={e => this.setState({ size: e.target.value })}
+            />
+          </label>
+        </g.Div>
+        <g.Div display="flex" justifyContent="space-around" flexWrap="wrap">
           {this.state.image && (
-            <BlurredImage data={this.state.image} size={this.state.size} />
+            <React.Fragment>
+              <ImageContainer>
+                <ImagePreview data={this.state.image} />
+              </ImageContainer>
+              <ImageContainer>
+                <BlurredImage data={this.state.image} size={this.state.size} />
+              </ImageContainer>
+            </React.Fragment>
           )}
-        </div>
+        </g.Div>
       </div>
     );
   }
